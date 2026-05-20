@@ -1,186 +1,85 @@
-// ─── Manejo de conversaciones con estado ─────────────────────────────────────
-// Guarda en memoria el paso actual de cada usuario.
-// Si el servidor se reinicia, las conversaciones se resetean (es aceptable).
+const express = require("express");
+const { processMessage } = require("./conversation");
+const { sendMessage, notifyAdvisor } = require("./sender");
 
-const sessions = new Map();
+const app = express();
+app.use(express.json());
 
-const STEPS = {
-	WELCOME: "welcome",
-	OPERATION: "operation", // comprar o alquilar
-	PROPERTY_TYPE: "property_type",
-	ZONE: "zone",
-	BUDGET: "budget",
-	NAME: "name",
-	DONE: "done",
-};
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "mi_token";
+const PORT = process.env.PORT || 3000;
 
-const ZONAS_GBA = [
-	"san isidro",
-	"tigre",
-	"vicente lopez",
-	"san martin",
-	"tres de febrero",
-	"moron",
-	"merlo",
-	"moreno",
-	"la matanza",
-	"lomas de zamora",
-	"quilmes",
-	"berazategui",
-	"florencio varela",
-	"avellaneda",
-	"lanus",
-	"san justo",
-	"ramos mejia",
-	"haedo",
-	"ituzaingo",
-	"hurlingham",
-	"palermo",
-	"belgrano",
-];
+// ─── Keep-alive para Render ───────────────────────────────────────────────────
+const APP_URL = process.env.APP_URL;
 
-const TIPOS_PROPIEDAD = [
-	"departamento",
-	"depto",
-	"casa",
-	"local",
-	"oficina",
-	"ph",
-	"terreno",
-	"cochera",
-];
-
-function getSession(phone) {
-	if (!sessions.has(phone)) {
-		sessions.set(phone, { step: STEPS.WELCOME, data: {} });
-	}
-	return sessions.get(phone);
-}
-
-function resetSession(phone) {
-	sessions.delete(phone);
-}
-
-/**
- * Procesa el mensaje del usuario según el paso actual de su conversación.
- * @returns {{ reply: string, needsAdvisor: boolean }}
- */
-function processMessage(phone, text) {
-	const session = getSession(phone);
-	const normalized = text.toLowerCase().trim();
-
-	// Escape hatch: el usuario puede pedir asesor en cualquier momento
-	const advisorTriggers = [
-		"asesor",
-		"humano",
-		"persona",
-		"hablar con alguien",
-		"agente",
-	];
-	if (advisorTriggers.some((kw) => normalized.includes(kw))) {
-		resetSession(phone);
-		return {
-			reply:
-				"¡Claro! Ya aviso a uno de nuestros asesores para que te contacte. En breve te escriben 😊",
-			needsAdvisor: true,
-		};
-	}
-
-	switch (session.step) {
-		case STEPS.WELCOME: {
-			session.step = STEPS.OPERATION;
-			return {
-				reply: `¡Hola! 👋 Gracias por contactarte con Zanola Inmobiliaria.\n\nContanos, ¿estás buscando *comprar* o *alquilar* una propiedad?`,
-				needsAdvisor: false,
-			};
-		}
-
-		case STEPS.OPERATION: {
-			if (normalized.includes("comprar") || normalized.includes("compra")) {
-				session.data.operation = "compra";
-				session.step = STEPS.PROPERTY_TYPE;
-				return {
-					reply: `¡Qué bueno! ¿Qué tipo de propiedad estás buscando?\n\nPor ejemplo: departamento, casa, local, oficina, PH, terreno...`,
-					needsAdvisor: false,
-				};
+if (APP_URL) {
+	setInterval(
+		async () => {
+			try {
+				await fetch(`${APP_URL}/ping`);
+				console.log("🏓 Keep-alive ping enviado");
+			} catch (e) {
+				console.error("Keep-alive falló:", e.message);
 			}
-			if (normalized.includes("alquilar") || normalized.includes("alquiler")) {
-				session.data.operation = "alquiler";
-				session.step = STEPS.PROPERTY_TYPE;
-				return {
-					reply: `¡Perfecto! ¿Qué tipo de propiedad estás buscando?\n\nPor ejemplo: departamento, casa, local, oficina, PH...`,
-					needsAdvisor: false,
-				};
-			}
-			return {
-				reply: `No entendí bien 😅 ¿Estás buscando *comprar* o *alquilar*?`,
-				needsAdvisor: false,
-			};
-		}
-
-		case STEPS.PROPERTY_TYPE: {
-			const tipo = TIPOS_PROPIEDAD.find((t) => normalized.includes(t));
-			session.data.propertyType = tipo || text.trim();
-			session.step = STEPS.ZONE;
-			return {
-				reply: `Anotado 📝 ¿En qué zona del GBA estás buscando?`,
-				needsAdvisor: false,
-			};
-		}
-
-		case STEPS.ZONE: {
-			session.data.zone = text.trim();
-			session.step = STEPS.BUDGET;
-
-			const budgetQuestion =
-				session.data.operation === "compra"
-					? `¿Tenés un presupuesto en mente? Podés indicarlo en pesos o dólares 💰`
-					: `¿Cuánto querés destinar por mes al alquiler? 💰`;
-
-			return { reply: budgetQuestion, needsAdvisor: false };
-		}
-
-		case STEPS.BUDGET: {
-			session.data.budget = text.trim();
-			session.step = STEPS.NAME;
-			return {
-				reply: `Casi listo! ¿Cuál es tu nombre para que el asesor pueda contactarte? 😊`,
-				needsAdvisor: false,
-			};
-		}
-
-		case STEPS.NAME: {
-			session.data.name = text.trim();
-			session.step = STEPS.DONE;
-
-			const summary =
-				`*Nuevo contacto:*\n\n` +
-				`👤 Nombre: ${session.data.name}\n` +
-				`📱 Teléfono: wa.me/${phone}\n` +
-				`🏷️ Operación: ${session.data.operation}\n` +
-				`🏠 Propiedad: ${session.data.propertyType}\n` +
-				`📍 Zona: ${session.data.zone}\n` +
-				`💰 Presupuesto: ${session.data.budget}`;
-
-			resetSession(phone);
-
-			return {
-				reply: `¡Gracias, ${session.data.name}! Un asesor de Zanola se va a comunicar con vos a la brevedad 🙌`,
-				needsAdvisor: true,
-				advisorMessage: summary,
-			};
-		}
-
-		case STEPS.DONE: {
-			resetSession(phone);
-			return processMessage(phone, text);
-		}
-
-		default: {
-			resetSession(phone);
-			return processMessage(phone, text);
-		}
-	}
+		},
+		14 * 60 * 1000,
+	);
 }
 
-module.exports = { processMessage };
+app.get("/ping", (_req, res) => res.send("pong"));
+
+// ─── Verificación del webhook ─────────────────────────────────────────────────
+app.get("/webhook", (req, res) => {
+	const mode = req.query["hub.mode"];
+	const token = req.query["hub.verify_token"];
+	const challenge = req.query["hub.challenge"];
+
+	if (mode === "subscribe" && token === VERIFY_TOKEN) {
+		console.log("✅ Webhook verificado");
+		return res.status(200).send(challenge);
+	}
+
+	res.sendStatus(403);
+});
+
+// ─── Recepción de mensajes ────────────────────────────────────────────────────
+app.post("/webhook", async (req, res) => {
+	res.sendStatus(200);
+
+	try {
+		const entry = req.body?.entry?.[0];
+		const changes = entry?.changes?.[0];
+		const value = changes?.value;
+
+		if (!value?.messages) return;
+
+		const message = value.messages[0];
+		if (message.type !== "text") return;
+
+		const from = message.from;
+		const text = message.text.body;
+
+		console.log(`📩 Mensaje de ${from}: "${text}"`);
+
+		const { reply, needsAdvisor, advisorMessage } = processMessage(from, text);
+
+		await sendMessage(from, reply);
+
+		if (needsAdvisor) {
+			console.log(`🔔 Derivando ${from} al asesor`);
+			if (advisorMessage) {
+				await notifyAdvisor(from, advisorMessage);
+			} else {
+				await notifyAdvisor(from, text);
+			}
+		}
+	} catch (err) {
+		console.error("Error procesando mensaje:", err);
+	}
+});
+
+// ─── Inicio ───────────────────────────────────────────────────────────────────
+app.listen(PORT, () => {
+	console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+	if (!APP_URL)
+		console.log("⚠️  APP_URL no configurada — keep-alive desactivado");
+});
