@@ -150,7 +150,9 @@ function processMessage(phone, text) {
 		}
 
 		case STEPS.NAME: {
-			session.data.name = text.trim();
+			const rawName = text.trim().split(/\s+/)[0];
+			session.data.name =
+				rawName.charAt(0).toUpperCase() + rawName.slice(1).toLowerCase();
 			session.step = STEPS.DONE;
 
 			const summary =

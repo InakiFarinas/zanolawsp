@@ -30,5 +30,14 @@ async function sendMessage(to, text) {
 		console.error("Error al enviar mensaje:", err);
 	}
 }
+async function notifyAdvisor(from, message) {
+	if (!ADVISOR_WA) {
+		console.log(`📋 Resumen (ADVISOR_PHONE no configurado):\n${message}`);
+		return;
+	}
 
+	await sendMessage(ADVISOR_WA, message);
+}
+
+module.exports = { sendMessage, notifyAdvisor };
 module.exports = { sendMessage };
