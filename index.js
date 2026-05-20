@@ -55,25 +55,27 @@ app.post("/webhook", async (req, res) => {
 		const message = value.messages[0];
 		if (message.type !== "text") return;
 
-		// 1. Recibimos el número (viene como "5491135959887")
 		let from = message.from;
 		const text = message.text.body;
 
-		// 2. 🇦🇷 SOLUCIÓN DEFINITIVA: Si empieza con 549, le quitamos el 9
+		// 🇦🇷 Fix número argentino
 		if (from.startsWith("549")) {
-			from = "54" + from.slice(3); // Se transforma en "541135959887"
+			from = "54" + from.slice(3);
 		}
 
-		console.log(`📩 Mensaje procesado para responder a: ${from}: "${text}"`);
+		console.log(`📩 Mensaje de ${from}: "${text}"`);
 
-		const { reply, needsAdvisor } = getResponse(text);
+		const { reply, needsAdvisor, advisorMessage } = processMessage(from, text);
 
-		// 3. Enviamos la respuesta con el número ya limpio
 		await sendMessage(from, reply);
 
 		if (needsAdvisor) {
-			console.log(`🔔 Derivando ${from} a asesor`);
-			await notifyAdvisor(from, text);
+			console.log(`🔔 Derivando ${from} al asesor`);
+			if (advisorMessage) {
+				await notifyAdvisor(from, advisorMessage);
+			} else {
+				await notifyAdvisor(from, text);
+			}
 		}
 	} catch (err) {
 		console.error("Error procesando mensaje:", err);
