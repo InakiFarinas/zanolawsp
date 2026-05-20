@@ -8,12 +8,8 @@ const ADVISOR_WA = process.env.ADVISOR_PHONE; // Número del asesor (ej: "549111
  * Envía un mensaje de texto a un número de WhatsApp.
  */
 async function sendMessage(to, text) {
-	let cleanTo = to.replace(/\D/g, "");
-	if (cleanTo.startsWith("549") && cleanTo.length === 13) {
-		cleanTo = "549" + "15" + cleanTo.slice(3);
-	}
 	const res = await fetch(
-		`https://graph.facebook.com/v19.0/${PHONE_ID}/messages`,
+		`https://graph.facebook.com/v25.0/${PHONE_ID}/messages`,
 		{
 			method: "POST",
 			headers: {

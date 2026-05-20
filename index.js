@@ -45,7 +45,6 @@ app.get("/webhook", (req, res) => {
 
 // ─── Recepción de mensajes ────────────────────────────────────────────────────
 app.post("/webhook", async (req, res) => {
-	// Responder 200 inmediatamente (Meta requiere respuesta en < 5 seg)
 	res.sendStatus(200);
 
 	try {
@@ -53,25 +52,27 @@ app.post("/webhook", async (req, res) => {
 		const changes = entry?.changes?.[0];
 		const value = changes?.value;
 
-		// Ignorar notificaciones de estado (leído, entregado, etc.)
 		if (!value?.messages) return;
 
 		const message = value.messages[0];
-
-		// Por ahora solo manejamos texto
 		if (message.type !== "text") return;
 
-		const from = message.from; // Número del usuario
-		const text = message.text.body; // Texto que envió
+		// 1. Recibimos el número (viene como "5491135959887")
+		let from = message.from;
+		const text = message.text.body;
 
-		console.log(`📩 Mensaje de ${from}: "${text}"`);
+		// 2. 🇦🇷 SOLUCIÓN DEFINITIVA: Si empieza con 549, le quitamos el 9
+		if (from.startsWith("549")) {
+			from = "54" + from.slice(3); // Se transforma en "541135959887"
+		}
+
+		console.log(`📩 Mensaje procesado para responder a: ${from}: "${text}"`);
 
 		const { reply, needsAdvisor } = getResponse(text);
 
-		// Enviar respuesta al usuario
+		// 3. Enviamos la respuesta con el número ya limpio
 		await sendMessage(from, reply);
 
-		// Si pidió asesor, notificar al equipo
 		if (needsAdvisor) {
 			console.log(`🔔 Derivando ${from} a asesor`);
 			await notifyAdvisor(from, text);
