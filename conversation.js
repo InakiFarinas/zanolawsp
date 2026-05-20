@@ -1,37 +1,18 @@
 // ─── Palabras clave y sus respuestas ─────────────────────────────────────────
 // Editá este archivo para personalizar el bot sin tocar la lógica principal.
 
-const MENU_MESSAGE = `¡Hola! 👋 Soy el asistente virtual.
+const MENU_MESSAGE = `¡Hola! 👋 Gracias por contactarte con Zanola Inmobiliaria.
 
-Escribí alguna de estas opciones:
-  • *precios* – Ver nuestros planes
-  • *horarios* – Horarios de atención
-  • *ubicacion* – Dónde encontrarnos
-  • *asesor* – Hablar con una persona
-
-¿En qué te puedo ayudar?`;
+Contanos, ¿estás buscando comprar o alquilar?`;
 
 const KEYWORDS = {
-	precios: `💰 *Nuestros planes:*
+	comprar: `¡Qué bueno! Tenemos varias opciones disponibles para compra.
 
-  • Básico: $X/mes
-  • Pro: $Y/mes
-  • Enterprise: consultanos
+¿Tenés alguna zona o tipo de propiedad en mente? Así te puedo orientar mejor 😊`,
 
-Para más info escribí *asesor* y te contactamos.`,
+	alquilar: `¡Perfecto! Contamos con propiedades en alquiler en distintas zonas.
 
-	horarios: `🕐 *Horarios de atención:*
-
-  Lunes a viernes: 9:00 – 18:00
-  Sábados: 10:00 – 13:00
-
-Fuera de ese horario podés dejar tu consulta y te respondemos en cuanto volvamos.`,
-
-	ubicacion: `📍 *Nos encontrás en:*
-
-  Av. Ejemplo 1234, Buenos Aires
-  
-  https://maps.google.com/?q=tu+direccion`,
+¿Qué estás buscando? ¿Un departamento, una casa? ¿Tenés alguna zona preferida? 😊`,
 };
 
 // Palabras que activan la derivación a asesor
