@@ -40,4 +40,3 @@ async function notifyAdvisor(from, message) {
 }
 
 module.exports = { sendMessage, notifyAdvisor };
-module.exports = { sendMessage };
